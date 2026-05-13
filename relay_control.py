@@ -14,12 +14,16 @@ SWITCH_1_PIN = 17      # Pin 11 (Input from momentary switch)
 SWITCH_2_PIN = 22      # Pin 15 (Input from momentary switch)
 RELAY_1_PIN = 23       # Pin 18 (Output to IO56D02 K1 - Forward)
 RELAY_2_PIN = 21       # Pin 40 (Output to IO56D02 K2 - Reverse)
+ALWAYS_OFF_1_PIN = 16  # Pin 36 (Output - Always OFF)
+ALWAYS_OFF_2_PIN = 20  # Pin 38 (Output - Always OFF)
 
 # Setup pins
 GPIO.setup(SWITCH_1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(SWITCH_2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(RELAY_1_PIN, GPIO.OUT, initial=GPIO.HIGH)  # Start HIGH (OFF)
 GPIO.setup(RELAY_2_PIN, GPIO.OUT, initial=GPIO.HIGH)  # Start HIGH (OFF)
+GPIO.setup(ALWAYS_OFF_1_PIN, GPIO.OUT, initial=GPIO.HIGH)  # Always HIGH (OFF)
+GPIO.setup(ALWAYS_OFF_2_PIN, GPIO.OUT, initial=GPIO.HIGH)  # Always HIGH (OFF)
 
 # State tracking
 cycle_running = False
@@ -35,6 +39,8 @@ def relay_cycle():
     - Relay 2 (K2) ON for 15 seconds (GPIO.LOW)
     - Relay 2 (K2) OFF for 0.5 seconds (GPIO.HIGH)
     - Repeat until stopped
+    
+    Always-OFF outputs remain HIGH (OFF) throughout
     """
     global cycle_running
     
@@ -67,6 +73,7 @@ def relay_cycle():
     # Cleanup when cycle stops - set all to HIGH (OFF)
     GPIO.output(RELAY_1_PIN, GPIO.HIGH)
     GPIO.output(RELAY_2_PIN, GPIO.HIGH)
+    # Always-OFF pins remain HIGH
     print("[CYCLE] Stopped - All relays OFF")
 
 def main():
@@ -86,6 +93,9 @@ def main():
     print("")
     print("Relay 1 (K1) output: GPIO 23 (Pin 18) - Forward rotation")
     print("Relay 2 (K2) output: GPIO 21 (Pin 40) - Reverse rotation")
+    print("")
+    print("Always-OFF output 1: GPIO 16 (Pin 36) - Permanently HIGH")
+    print("Always-OFF output 2: GPIO 20 (Pin 38) - Permanently HIGH")
     print("")
     print("Active Logic: LOW = ON, HIGH = OFF")
     print("=" * 70)
@@ -130,6 +140,9 @@ def main():
             elif GPIO.input(SWITCH_2_PIN) == GPIO.HIGH:
                 switch_2_pressed = False
             
+            # Always-OFF outputs remain HIGH (OFF)
+            # No action needed - they stay permanently OFF
+            
             time.sleep(0.05)  # Debounce delay
 
     except KeyboardInterrupt:
@@ -143,6 +156,8 @@ def main():
         # Set all outputs to HIGH (OFF state for ACTIVE LOW inputs)
         GPIO.output(RELAY_1_PIN, GPIO.HIGH)
         GPIO.output(RELAY_2_PIN, GPIO.HIGH)
+        GPIO.output(ALWAYS_OFF_1_PIN, GPIO.HIGH)
+        GPIO.output(ALWAYS_OFF_2_PIN, GPIO.HIGH)
         GPIO.cleanup()
         print("[INFO] GPIO cleaned up - Exiting")
 
