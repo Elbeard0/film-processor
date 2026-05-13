@@ -6,16 +6,20 @@ import threading
 GPIO.setmode(GPIO.BCM)
 
 # Pin Configuration for Pi Zero W
-SWITCH_1_PIN = 17      # Pin 11
-SWITCH_2_PIN = 22      # Pin 15
-RELAY_1_PIN = 23       # Pin 18
-RELAY_2_PIN = 21       # Pin 40 (GPIO 24 doesn't exist on Pi Zero W)
+# NOTE: IO56D02-12V-001 uses ACTIVE LOW inputs
+# GPIO.LOW (0V) = Relay ON (connects to GND)
+# GPIO.HIGH (3.3V) = Relay OFF (disconnects from GND)
+
+SWITCH_1_PIN = 17      # Pin 11 (Input from momentary switch)
+SWITCH_2_PIN = 22      # Pin 15 (Input from momentary switch)
+RELAY_1_PIN = 23       # Pin 18 (Output to IO56D02 K1 - Forward)
+RELAY_2_PIN = 21       # Pin 40 (Output to IO56D02 K2 - Reverse)
 
 # Setup pins
 GPIO.setup(SWITCH_1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(SWITCH_2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(RELAY_1_PIN, GPIO.OUT, initial=GPIO.LOW)
-GPIO.setup(RELAY_2_PIN, GPIO.OUT, initial=GPIO.LOW)
+GPIO.setup(RELAY_1_PIN, GPIO.OUT, initial=GPIO.HIGH)  # Start HIGH (OFF)
+GPIO.setup(RELAY_2_PIN, GPIO.OUT, initial=GPIO.HIGH)  # Start HIGH (OFF)
 
 # State tracking
 cycle_running = False
@@ -25,62 +29,66 @@ manual_relay_1_on = False
 
 def relay_cycle():
     """
-    Switch 1 cycle:
-    - Relay 1 ON for 15 seconds
-    - Relay 1 OFF for 0.5 seconds
-    - Relay 2 ON for 15 seconds
-    - Relay 2 OFF for 0.5 seconds
+    Switch 1 cycle (ACTIVE LOW - IO56D02-12V-001):
+    - Relay 1 (K1) ON for 15 seconds (GPIO.LOW)
+    - Relay 1 (K1) OFF for 0.5 seconds (GPIO.HIGH)
+    - Relay 2 (K2) ON for 15 seconds (GPIO.LOW)
+    - Relay 2 (K2) OFF for 0.5 seconds (GPIO.HIGH)
     - Repeat until stopped
     """
     global cycle_running
     
     while cycle_running:
         try:
-            # Relay 1 ON for 15 seconds
-            GPIO.output(RELAY_1_PIN, GPIO.HIGH)
-            print("[CYCLE] Relay 1 ON (15s)")
+            # Relay 1 (K1) ON for 15 seconds - ACTIVE LOW
+            GPIO.output(RELAY_1_PIN, GPIO.LOW)
+            print("[CYCLE] Relay 1 (K1) ON - 15 seconds")
             time.sleep(15)
             
-            # Relay 1 OFF for 0.5 seconds
-            GPIO.output(RELAY_1_PIN, GPIO.LOW)
-            print("[CYCLE] Relay 1 OFF (0.5s)")
+            # Relay 1 (K1) OFF for 0.5 seconds - ACTIVE HIGH
+            GPIO.output(RELAY_1_PIN, GPIO.HIGH)
+            print("[CYCLE] Relay 1 (K1) OFF - 0.5 seconds")
             time.sleep(0.5)
             
-            # Relay 2 ON for 15 seconds
-            GPIO.output(RELAY_2_PIN, GPIO.HIGH)
-            print("[CYCLE] Relay 2 ON (15s)")
+            # Relay 2 (K2) ON for 15 seconds - ACTIVE LOW
+            GPIO.output(RELAY_2_PIN, GPIO.LOW)
+            print("[CYCLE] Relay 2 (K2) ON - 15 seconds")
             time.sleep(15)
             
-            # Relay 2 OFF for 0.5 seconds
-            GPIO.output(RELAY_2_PIN, GPIO.LOW)
-            print("[CYCLE] Relay 2 OFF (0.5s)")
+            # Relay 2 (K2) OFF for 0.5 seconds - ACTIVE HIGH
+            GPIO.output(RELAY_2_PIN, GPIO.HIGH)
+            print("[CYCLE] Relay 2 (K2) OFF - 0.5 seconds")
             time.sleep(0.5)
             
         except Exception as e:
             print(f"[ERROR] Cycle error: {e}")
             break
     
-    # Cleanup when cycle stops
-    GPIO.output(RELAY_1_PIN, GPIO.LOW)
-    GPIO.output(RELAY_2_PIN, GPIO.LOW)
+    # Cleanup when cycle stops - set all to HIGH (OFF)
+    GPIO.output(RELAY_1_PIN, GPIO.HIGH)
+    GPIO.output(RELAY_2_PIN, GPIO.HIGH)
     print("[CYCLE] Stopped - All relays OFF")
 
 def main():
     global cycle_running, switch_1_pressed, switch_2_pressed, manual_relay_1_on
     
-    print("=" * 60)
+    print("=" * 70)
     print("Film Processor Relay Control - Raspberry Pi Zero W")
-    print("=" * 60)
+    print("Motor Controller: IO56D02-12V-001 (ACTIVE LOW)")
+    print("=" * 70)
+    print("")
     print("Switch 1 (GPIO 17, Pin 11): Start/Stop cycle mode")
     print("  - Press: Start repeating relay sequence")
     print("  - Press again: Stop sequence")
     print("")
-    print("Switch 2 (GPIO 22, Pin 15): Manual Relay 1 control")
+    print("Switch 2 (GPIO 22, Pin 15): Manual Relay 1 (K1) control")
     print("  - Press: Relay 1 ON/OFF (when cycle not running)")
     print("")
-    print("Relay 1 output: GPIO 23 (Pin 18)")
-    print("Relay 2 output: GPIO 21 (Pin 40)")
-    print("=" * 60)
+    print("Relay 1 (K1) output: GPIO 23 (Pin 18) - Forward rotation")
+    print("Relay 2 (K2) output: GPIO 21 (Pin 40) - Reverse rotation")
+    print("")
+    print("Active Logic: LOW = ON, HIGH = OFF")
+    print("=" * 70)
     print("")
     
     cycle_thread = None
@@ -111,10 +119,11 @@ def main():
                 
                 if not cycle_running:  # Only allow manual control if cycle is not running
                     manual_relay_1_on = not manual_relay_1_on
-                    GPIO.output(RELAY_1_PIN, GPIO.HIGH if manual_relay_1_on else GPIO.LOW)
+                    # ACTIVE LOW: LOW = ON, HIGH = OFF
+                    GPIO.output(RELAY_1_PIN, GPIO.LOW if manual_relay_1_on else GPIO.HIGH)
                     
                     status = "ON" if manual_relay_1_on else "OFF"
-                    print(f"[SW2] Pressed: Relay 1 {status} (manual)")
+                    print(f"[SW2] Pressed: Relay 1 (K1) {status} (manual)")
                 else:
                     print("[SW2] Pressed: Cycle mode active - cannot use manual control")
                     
@@ -131,8 +140,9 @@ def main():
         
     finally:
         cycle_running = False
-        GPIO.output(RELAY_1_PIN, GPIO.LOW)
-        GPIO.output(RELAY_2_PIN, GPIO.LOW)
+        # Set all outputs to HIGH (OFF state for ACTIVE LOW inputs)
+        GPIO.output(RELAY_1_PIN, GPIO.HIGH)
+        GPIO.output(RELAY_2_PIN, GPIO.HIGH)
         GPIO.cleanup()
         print("[INFO] GPIO cleaned up - Exiting")
 
