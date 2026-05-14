@@ -35,10 +35,8 @@ def relay_cycle():
     """
     Switch 1 cycle (ACTIVE LOW - IO56D02-12V-001):
     - Relay 1 (K1) ON for 15 seconds (GPIO.LOW)
-    - Relay 1 (K1) OFF for 0.5 seconds (GPIO.HIGH)
     - Relay 2 (K2) ON for 15 seconds (GPIO.LOW)
-    - Relay 2 (K2) OFF for 0.5 seconds (GPIO.HIGH)
-    - Repeat until stopped
+    - Repeat until stopped (no stop delay between cycles)
     
     Always-OFF outputs remain HIGH (OFF) throughout
     """
@@ -51,20 +49,15 @@ def relay_cycle():
             print("[CYCLE] Relay 1 (K1) ON - 15 seconds")
             time.sleep(15)
             
-            # Relay 1 (K1) OFF for 0.5 seconds - ACTIVE HIGH
-            GPIO.output(RELAY_1_PIN, GPIO.HIGH)
-            print("[CYCLE] Relay 1 (K1) OFF - 0.5 seconds")
-            time.sleep(0.5)
-            
             # Relay 2 (K2) ON for 15 seconds - ACTIVE LOW
+            GPIO.output(RELAY_1_PIN, GPIO.HIGH)  # Turn off Relay 1
             GPIO.output(RELAY_2_PIN, GPIO.LOW)
             print("[CYCLE] Relay 2 (K2) ON - 15 seconds")
             time.sleep(15)
             
-            # Relay 2 (K2) OFF for 0.5 seconds - ACTIVE HIGH
+            # End of cycle - turn off Relay 2 and repeat
             GPIO.output(RELAY_2_PIN, GPIO.HIGH)
-            print("[CYCLE] Relay 2 (K2) OFF - 0.5 seconds")
-            time.sleep(0.5)
+            print("[CYCLE] Cycle complete - restarting")
             
         except Exception as e:
             print(f"[ERROR] Cycle error: {e}")
@@ -93,6 +86,11 @@ def main():
     print("")
     print("Relay 1 (K1) output: GPIO 23 (Pin 18) - Forward rotation")
     print("Relay 2 (K2) output: GPIO 21 (Pin 40) - Reverse rotation")
+    print("")
+    print("Cycle Sequence:")
+    print("  - Relay 1 ON for 15 seconds")
+    print("  - Relay 2 ON for 15 seconds")
+    print("  - Repeat (no delay between cycles)")
     print("")
     print("Always-OFF output 1: GPIO 16 (Pin 36) - Permanently HIGH")
     print("Always-OFF output 2: GPIO 20 (Pin 38) - Permanently HIGH")
